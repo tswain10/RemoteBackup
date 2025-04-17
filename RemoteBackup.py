@@ -10,7 +10,11 @@ import signal
 
 CONFIG_FILE = 'config.json'
 KEY_FILE = 'key.key'
-LOG_FILE = 'backup.log'
+
+# Load the source folder from the configuration
+source_folder = json.loads(open('zzzconfig.json').read())["source_folder"]
+LOG_FILE = os.path.join(source_folder, 'backup.log')
+
 logging.basicConfig(
     filename=LOG_FILE,
     level=logging.INFO,
