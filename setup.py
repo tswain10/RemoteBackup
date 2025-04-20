@@ -1,4 +1,5 @@
 import os
+import sys
 import tkinter as tk
 from tkinter import messagebox
 from utils import generate_key, load_key, save_config  # Import shared utility functions
