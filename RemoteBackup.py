@@ -7,33 +7,21 @@ import schedule
 import time
 from cryptography.fernet import Fernet
 import signal
+import sys
+import win32com.client  # Requires `pywin32` package
+import subprocess
+import tkinter as tk
+from tkinter import simpledialog, messagebox
+from setup import prompt_user_for_config_gui  # Import setup functions
+from utils import generate_key, load_key, save_config, load_config  # Import shared utility functions
 
 CONFIG_FILE = 'config.json'
-KEY_FILE = 'key.key'
-
-# Load the source folder from the configuration
-source_folder = json.loads(open('zzzconfig.json').read())["source_folder"]
-LOG_FILE = os.path.join(source_folder, 'backup.log')
-
+LOG_FILE = 'backup.log'
 logging.basicConfig(
     filename=LOG_FILE,
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
-
-
-def generate_key():
-    """Generate and save a key for encryption."""
-    key = Fernet.generate_key()
-    with open(KEY_FILE, 'wb') as key_file:
-        key_file.write(key)
-
-def load_key():
-    """Load the encryption key from the key file."""
-    if not os.path.exists(KEY_FILE):
-        generate_key()
-    with open(KEY_FILE, 'rb') as key_file:
-        return key_file.read()
 
 def encrypt_config(data, key):
     """Encrypt configuration data."""
@@ -44,23 +32,6 @@ def decrypt_config(encrypted_data, key):
     """Decrypt configuration data."""
     fernet = Fernet(key)
     return json.loads(fernet.decrypt(encrypted_data).decode())
-
-def save_config(data, key):
-    """Save encrypted configuration data to the config file."""
-    encrypted_data = encrypt_config(data, key)
-    with open(CONFIG_FILE, 'wb') as config_file:
-        config_file.write(encrypted_data)
-    logging.info("Configuration saved successfully.")
-
-def load_config(key):
-    """Load and decrypt configuration data from the config file."""
-    if not os.path.exists(CONFIG_FILE):
-        logging.warning("Configuration file not found.")
-        return None
-    with open(CONFIG_FILE, 'rb') as config_file:
-        encrypted_data = config_file.read()
-    logging.info("Configuration loaded successfully.")
-    return decrypt_config(encrypted_data, key)
 
 def prompt_user_for_config():
     """Prompt the user to enter configuration details."""
@@ -335,17 +306,29 @@ def graceful_exit(signum, frame):
 signal.signal(signal.SIGINT, graceful_exit)
 signal.signal(signal.SIGTERM, graceful_exit)
 
-def main():
-    key = load_key()
+def run_in_background():
+    """Restart the program in the background."""
+    if not hasattr(sys, 'frozen'):  # Skip if already running as an .exe
+        return
+    subprocess.Popen([sys.executable], creationflags=subprocess.DETACHED_PROCESS)
+    sys.exit()
 
-    # Load existing configuration or prompt the user for new configuration
+def main():
+    # Check if configuration exists
+    if not os.path.exists(CONFIG_FILE):
+        print("Configuration file not found. Launching setup...")
+        prompt_user_for_config_gui()  # Launch setup GUI for configuration
+        return
+
+    # Run in the background
+    run_in_background()
+
+    # Load configuration and start the scheduler
+    key = load_key()
     config = load_config(key)
     if not config:
-        print("No configuration found. Let's set it up.")
-        config = prompt_user_for_config()
-        save_config(config, key)
-        print("Configuration saved and encrypted.")
-        print_config(config)
+        logging.error("Failed to load configuration.")
+        return
 
     # Validate configuration
     required_fields = get_required_fields(config.get('local_sync', False), config.get('sftp_sync', False))
