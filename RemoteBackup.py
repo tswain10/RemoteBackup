@@ -2,6 +2,9 @@ import logging
 import os
 import schedule
 import time
+import json
+import paramiko
+import shutil
 from cryptography.fernet import Fernet
 import signal
 import sys
@@ -316,7 +319,7 @@ def main():
     if not os.path.exists(CONFIG_FILE):
         print("Configuration file not found. Launching setup...")
         prompt_user_for_config_gui()  # Launch setup GUI for configuration
-        return
+        #return
 
     # Run in the background
     run_in_background()
