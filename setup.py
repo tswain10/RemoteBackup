@@ -2,8 +2,9 @@ import os
 import sys
 import tkinter as tk
 from tkinter import messagebox
-from utils import generate_key, load_key, save_config  # Import shared utility functions
+from utils import generate_key, load_key, save_config, add_to_startup  # Import shared utility functions
 import win32com.client  # Requires `pywin32` package
+import psutil  # Add this to check and terminate processes
 
 CONFIG_FILE = 'config.json'
 
@@ -24,8 +25,21 @@ def add_to_startup():
     else:
         print("Shortcut already exists in Windows Startup.")
 
+def stop_program():
+    """Stop the program if it is running."""
+    for process in psutil.process_iter(['pid', 'name']):
+        if process.info['name'] == 'TSTechBackup.exe':  # Replace with the executable name
+            try:
+                process.terminate()
+                messagebox.showinfo("Program Stopped", "The program has been stopped successfully.")
+                return
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to stop the program: {e}")
+                return
+    messagebox.showinfo("Not Running", "The program is not currently running.")
+
 def prompt_user_for_config_gui():
-    """Prompt the user to create a configuration file using a GUI."""
+    """Prompt the user to create or modify the configuration."""
     def save_and_exit():
         config = {
             "local_sync": local_sync_var.get(),
@@ -42,13 +56,13 @@ def prompt_user_for_config_gui():
         }
         key = load_key()
         save_config(config, key)
-        add_to_startup()  # Add to startup after saving the configuration
+        add_to_startup()
         messagebox.showinfo("Configuration Saved", "Configuration has been saved successfully.")
         root.destroy()
 
     root = tk.Tk()
     root.title("RemoteBackup Configuration")
-    root.geometry("400x600")
+    root.geometry("420x620")
     root.resizable(False, False)
 
     # Local Sync
@@ -103,6 +117,9 @@ def prompt_user_for_config_gui():
     tk.Label(root, text="Custom Interval Minutes (if custom):").pack(anchor="w", padx=10, pady=2)
     custom_interval_var = tk.StringVar()
     tk.Entry(root, textvariable=custom_interval_var, width=50).pack(anchor="w", padx=10, pady=2)
+
+    # Add Stop Program Button
+    tk.Button(root, text="Stop Program", command=stop_program).pack(anchor="center", pady=10)
 
     # Save Button
     tk.Button(root, text="Save Configuration", command=save_and_exit).pack(anchor="center", pady=20)

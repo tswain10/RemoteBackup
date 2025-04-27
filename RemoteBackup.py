@@ -13,10 +13,11 @@ import subprocess
 import tkinter as tk
 from tkinter import simpledialog, messagebox
 from setup import prompt_user_for_config_gui  # Import setup functions
-from utils import generate_key, load_key, save_config, load_config  # Import shared utility functions
+from utils import generate_key, load_key, save_config, load_config, validate_config, add_to_startup  # Import shared utility functions
 
 CONFIG_FILE = 'config.json'
 LOG_FILE = 'backup.log'
+BUSINESS_HOURS = (8, 18)  # 8 AM to 6 PM
 
 logging.basicConfig(
     filename=LOG_FILE,
@@ -259,6 +260,7 @@ def get_required_fields(local_sync, sftp_sync):
 def run_backup(config):
     """Run the backup based on the configuration."""
     try:
+        logging.info("Starting backup...")
         local_sync = config.get('local_sync', False)
         sftp_sync = config.get('sftp_sync', False)
 
@@ -276,26 +278,26 @@ def run_backup(config):
 
         if local_sync:
             local_sync_directories(source_folder, destination_folder)
+        logging.info("Backup completed successfully.")
     except Exception as e:
         logging.error(f"An error occurred during the backup: {e}")
 
 def schedule_backup(config):
-    """Schedule the backup based on the configuration."""
+    """Schedule the backup outside of business hours."""
     interval = config.get("schedule_interval", "daily")
     custom_minutes = config.get("custom_interval_minutes", None)
 
     if interval == "daily":
-        schedule.every().day.at("00:00").do(run_backup, config)
-        logging.info("Backup scheduled to run daily at 00:00.")
+        schedule.every().day.at("19:00").do(run_backup, config)  # 7 PM
+        logging.info("Backup scheduled daily at 7 PM.")
     elif interval == "weekly":
-        schedule.every().week.at("00:00").do(run_backup, config)
-        logging.info("Backup scheduled to run weekly at 00:00.")
+        schedule.every().week.at("19:00").do(run_backup, config)  # 7 PM
+        logging.info("Backup scheduled weekly at 7 PM.")
     elif interval == "custom" and custom_minutes:
         schedule.every(custom_minutes).minutes.do(run_backup, config)
-        logging.info(f"Backup scheduled to run every {custom_minutes} minutes.")
+        logging.info(f"Backup scheduled every {custom_minutes} minutes.")
     else:
         logging.error("Invalid scheduling configuration. Please reconfigure.")
-        print("Invalid scheduling configuration. Please reconfigure.")
         return False
     return True
 
@@ -315,7 +317,7 @@ def run_in_background():
     sys.exit()
 
 def main():
-    # Check if configuration exists
+        # Check if configuration exists
     if not os.path.exists(CONFIG_FILE):
         print("Configuration file not found. Launching setup...")
         prompt_user_for_config_gui()  # Launch setup GUI for configuration
